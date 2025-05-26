@@ -64,7 +64,7 @@ public class Language {
             boolean allow = random.nextBoolean();
             if (allow) permitted_templates.add(templates[i]);
         }
-        int max_word_length = random.nextInt(15);
+        int max_word_length = random.nextInt(15) + 3;
 
         String[] vocabulary = new String[starter_nouns.length];
         for (int i = 0; i < starter_nouns.length; i++) {
