@@ -1,5 +1,10 @@
 import java.util.Random;
 
+interface InterfaceLanguage {
+    enum Sound { V, C }
+    record Consonant(String symbol, VocabularySeed.Manner manner, boolean voiced) {}
+}
+
 public class Language {
     private Vocabulary vocabulary;
     private Grammar grammar;

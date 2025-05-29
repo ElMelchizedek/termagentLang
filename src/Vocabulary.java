@@ -5,11 +5,8 @@ import java.util.Random;
 import java.util.List;
 import java.util.HashMap;
 
-class VocabularySeed {
-    public enum Sound { V, C }
+class VocabularySeed implements InterfaceLanguage {
     public enum Manner {Nasal, Plosive, Affricate, Fricative, Liquid, Glide}
-
-    public record Consonant(String symbol, Manner manner, boolean voiced) {}
 
     static public final String[] consonant_symbols = {
             "p", "t", "k", "b", "d", "g", "f", "s", "sh", "th", "h", "v", "z", "zh", "dh", "ch", "ts", "j", "dz",
@@ -79,16 +76,16 @@ class VocabularySeed {
 
                 // + Universal Bans
                 // No same voice and manner.
-                if (phonemeA.manner == phonemeB.manner) return false;
+                if (phonemeA.manner() == phonemeB.manner()) return false;
                 // No nasal and opposing voice.
-                if ( (phonemeA.manner == Manner.Nasal) && (phonemeA.voiced != phonemeB.voiced)) return false;
+                if ( (phonemeA.manner() == Manner.Nasal) && (phonemeA.voiced() != phonemeB.voiced())) return false;
                 // No glottal and consonant.
-                if (phonemeA.symbol.equals("'")) return false;
+                if (phonemeA.symbol().equals("'")) return false;
 
                 // + Voicing-based restrictions.
-                if ( (!phonemeA.voiced) && (phonemeB.voiced) ) {
-                    if ( (phonemeA.manner == Manner.Plosive) && (phonemeB.manner == Manner.Nasal) ) return false;
-                    if ( (phonemeA.manner == Manner.Affricate) && (phonemeB.manner == Manner.Liquid)) return false;
+                if ( (!phonemeA.voiced()) && (phonemeB.voiced()) ) {
+                    if ( (phonemeA.manner() == Manner.Plosive) && (phonemeB.manner() == Manner.Nasal) ) return false;
+                    if ( (phonemeA.manner() == Manner.Affricate) && (phonemeB.manner() == Manner.Liquid)) return false;
                 }
             } else if ( (word.get(i) instanceof String phonemeA) && (word.get(i + 1) instanceof String phonemeB)) {
 
@@ -139,7 +136,7 @@ class VocabularySeed {
 
         for (Object phoneme : word) {
             if (phoneme instanceof Consonant) {
-                realWord = realWord.concat(((Consonant) phoneme).symbol);
+                realWord = realWord.concat(((Consonant) phoneme).symbol());
             } else if (phoneme instanceof String) {
                 realWord = realWord.concat((String) phoneme);
             }
@@ -176,10 +173,10 @@ class VocabularySeed {
 }
 
 public class Vocabulary extends VocabularySeed {
-    private Map<String, Consonant> consonants = new HashMap<>();
-    private ArrayList<String> vowels = new ArrayList<>();
-    private ArrayList<Sound[]> templates = new ArrayList<>();
-    private ArrayList<String> inventory = new ArrayList<>();
+    private final Map<String, Consonant> consonants = new HashMap<>();
+    private final ArrayList<String> vowels = new ArrayList<>();
+    private final ArrayList<Sound[]> templates = new ArrayList<>();
+    private final ArrayList<String> inventory = new ArrayList<>();
 
     public Vocabulary(boolean debug, Random random) {
         generateSpecifications(random, consonants, vowels, templates);

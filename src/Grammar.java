@@ -1,39 +1,49 @@
 import java.util.*;
 
-class GrammarSeed {
+class GrammarSeed implements InterfaceLanguage {
+
+    public sealed interface Feature<T> permits NounCase, VerbTense {
+        T type();
+        ArrayList<String> phonemes();
+    }
+
     public enum NounCaseType { NOM, ACC, GEN, DAT }
-    public record NounCase(NounCaseType type, ArrayList<String> phonemes) {}
+    public record NounCase(NounCaseType type, ArrayList<String> phonemes)
+        implements Feature<NounCaseType> {}
+
     public enum VerbTenseType { PRESENT, PAST }
-    public record VerbTense(VerbTenseType type, ArrayList<String> phonemes) {}
+    public record VerbTense(VerbTenseType type, ArrayList<String> phonemes)
+        implements Feature<VerbTenseType> {}
+
     public enum WordOrder { SOV, SVO, VSO, VOS, OSV, OVS }
     public enum PronounType {FIRST, SECOND, THIRD}
 
     @FunctionalInterface
-    public interface StructureRecord<MorphemeType, Phonemes, Morpheme> {
+    private interface StructureRecord<MorphemeType, Phonemes, Morpheme> {
         Morpheme apply(MorphemeType type, Phonemes phonemes);
     }
 
-    public static <Type, Morpheme> Map<Type, Morpheme> generateStructure(
-            Vocabulary vocabulary, Random random, Type[] possible_morphemes, ArrayList<ArrayList<VocabularySeed.Sound>> phonemes_template,
+    private static <Type, Morpheme> Map<Type, Morpheme> generateStructure(
+            Vocabulary vocabulary, Random random, Type[] possible_morphemes, ArrayList<ArrayList<Sound>> phonemes_template,
             StructureRecord<Type, ArrayList<String>, Morpheme> morpheme_factory) {
 
-        List<VocabularySeed.Consonant> consonant_values = vocabulary.getConsonantsValues();
+        List<Consonant> consonant_values = vocabulary.getConsonantsValues();
         ArrayList<String> vowels = vocabulary.getVowels();
 
         Map<Type, Morpheme> structure = new HashMap<>();
         for (Type type : possible_morphemes) {
             ArrayList<String> filled_phonemes_list = new ArrayList<>();
 
-            for (ArrayList<VocabularySeed.Sound> template: phonemes_template) {
+            for (ArrayList<Sound> template: phonemes_template) {
                 String filled_phoneme_string = "";
 
-                for (VocabularySeed.Sound sound : template) {
+                for (Sound sound : template) {
                     String singular_phoneme_string = "";
 
-                    if (sound == VocabularySeed.Sound.C) {
-                        VocabularySeed.Consonant consonant = consonant_values.get(random.nextInt(consonant_values.size()));
+                    if (sound == Sound.C) {
+                        Consonant consonant = consonant_values.get(random.nextInt(consonant_values.size()));
                         singular_phoneme_string = consonant.symbol();
-                    } else if (sound == VocabularySeed.Sound.V) {
+                    } else if (sound == Sound.V) {
                         String vowel = vowels.get(random.nextInt(vowels.size()));
                         singular_phoneme_string = vowel;
                     }
@@ -53,37 +63,80 @@ class GrammarSeed {
         return structure;
     }
 
+    public static <T extends Feature> Feature fixFeature(Feature feature) {
+        String vowel_prefixed = feature.phonemes().getLast().toString();
+        char symbol_vowel_prefixed = vowel_prefixed.charAt(0);
+        String consonant_prefixed = feature.phonemes().getLast().toString();
+
+        String fixed_consonant_prefixed = consonant_prefixed.substring(0, consonant_prefixed.length() - 1) + symbol_vowel_prefixed;
+        ArrayList<String> new_phonemes = new ArrayList<>();
+        new_phonemes.add(vowel_prefixed);
+        new_phonemes.add(fixed_consonant_prefixed);
+
+       // I could do this better and more type-safety, but idgaf tbh.
+       if (feature instanceof NounCase noun_case) {
+           return new NounCase(noun_case.type(), new_phonemes);
+       } else if (feature instanceof VerbTense verb_tense) {
+           return new VerbTense(verb_tense.type(), new_phonemes);
+       }
+
+       return null;
+    }
+
+
     public static Map<NounCaseType, NounCase> generateNounCases(Vocabulary vocabulary, Random random) {
         NounCaseType[] possible_noun_cases = {NounCaseType.NOM, NounCaseType.ACC, NounCaseType.GEN, NounCaseType.DAT};
 
-        ArrayList<VocabularySeed.Sound> ending_vowel_prefixed = new ArrayList<>(List.of(
-                VocabularySeed.Sound.C
+        ArrayList<Sound> ending_vowel_prefixed = new ArrayList<>(List.of(
+                Sound.C
         ));
-        ArrayList<VocabularySeed.Sound> ending_consonant_prefixed = new ArrayList<>(Arrays.asList(
-                VocabularySeed.Sound.V, VocabularySeed.Sound.C
+        ArrayList<Sound> ending_consonant_prefixed = new ArrayList<>(Arrays.asList(
+                Sound.V, Sound.C
         ));
-        ArrayList<ArrayList<VocabularySeed.Sound>> desired_phonemes = new ArrayList<>(Arrays.asList(
+        ArrayList<ArrayList<Sound>> desired_phonemes = new ArrayList<>(Arrays.asList(
                 ending_vowel_prefixed, ending_consonant_prefixed
         ));
 
-        return generateStructure(vocabulary, random, possible_noun_cases, desired_phonemes, NounCase::new);
+        Map<NounCaseType, NounCase> raw_noun_cases = generateStructure(vocabulary, random, possible_noun_cases, desired_phonemes, NounCase::new);
+        Collection<NounCase> noun_cases_values = raw_noun_cases.values();
+        Map<NounCaseType, NounCase> corrected_noun_cases = new HashMap<>();
+
+        int iterator_possible_noun_cases = 0;
+        for (NounCase noun_case : noun_cases_values) {
+            NounCase new_noun_case = (NounCase) fixFeature(noun_case);
+            corrected_noun_cases.put(possible_noun_cases[iterator_possible_noun_cases], new_noun_case);
+            iterator_possible_noun_cases++;
+        }
+
+        return corrected_noun_cases;
     }
 
     public static Map<VerbTenseType, VerbTense> generateVerbTenses(Vocabulary vocabulary, Random random) {
         VerbTenseType[] possible_verb_tenses = {VerbTenseType.PRESENT, VerbTenseType.PAST};
 
-        ArrayList<VocabularySeed.Sound> ending_vowel_prefixed = new ArrayList<>(List.of(
-                VocabularySeed.Sound.C
+        ArrayList<Sound> ending_vowel_prefixed = new ArrayList<>(List.of(
+                Sound.C
         ));
-        ArrayList<VocabularySeed.Sound> ending_consonant_prefixed = new ArrayList<>(Arrays.asList(
-                VocabularySeed.Sound.V, VocabularySeed.Sound.C
+        ArrayList<Sound> ending_consonant_prefixed = new ArrayList<>(Arrays.asList(
+                Sound.V, Sound.C
         ));
-        ArrayList<ArrayList<VocabularySeed.Sound>> desired_phonemes = new ArrayList<>(Arrays.asList(
+        ArrayList<ArrayList<Sound>> desired_phonemes = new ArrayList<>(Arrays.asList(
                 ending_vowel_prefixed, ending_consonant_prefixed
         ));
 
+        Map<VerbTenseType, VerbTense> raw_verb_tenses = generateStructure(vocabulary, random, possible_verb_tenses, desired_phonemes, VerbTense::new);
+        Collection<VerbTense> verb_tenses_values = raw_verb_tenses.values();
+        Map<VerbTenseType, VerbTense> corrected_verb_tenses = new HashMap<>();
 
-        return generateStructure(vocabulary, random, possible_verb_tenses, desired_phonemes, VerbTense::new);
+        int iterator_possible_verb_tenses = 0;
+        for (VerbTense tense : verb_tenses_values) {
+            VerbTense new_verb_tense = (VerbTense) fixFeature(tense);
+            corrected_verb_tenses.put(possible_verb_tenses[iterator_possible_verb_tenses], new_verb_tense);
+            iterator_possible_verb_tenses++;
+        }
+
+        return corrected_verb_tenses;
+
     }
 
     public static WordOrder generateWordOrder(Random random) {
@@ -92,9 +145,9 @@ class GrammarSeed {
 }
 
 public class Grammar extends GrammarSeed {
-    private Map<NounCaseType, NounCase> noun_cases;
-    private Map<VerbTenseType, VerbTense> verb_tenses;
-    private WordOrder word_order;
+    private final Map<NounCaseType, NounCase> noun_cases;
+    private final Map<VerbTenseType, VerbTense> verb_tenses;
+    private final WordOrder word_order;
 
     public Grammar(boolean debug, Random random, Vocabulary vocabulary) {
         this.noun_cases = generateNounCases(vocabulary, random);
