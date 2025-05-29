@@ -64,7 +64,7 @@ class GrammarSeed implements InterfaceLanguage {
     }
 
     public static <T extends Feature> Feature fixFeature(Feature feature) {
-        String vowel_prefixed = feature.phonemes().getLast().toString();
+        String vowel_prefixed = feature.phonemes().getFirst().toString();
         char symbol_vowel_prefixed = vowel_prefixed.charAt(0);
         String consonant_prefixed = feature.phonemes().getLast().toString();
 
