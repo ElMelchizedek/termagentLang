@@ -2,31 +2,50 @@ import java.util.*;
 
 class GrammarSeed {
     public enum NounCaseType { NOM, ACC, GEN, DAT }
-    public record NounCase(NounCaseType type, String vowel_prefixed, String consonant_prefixed) {}
+    public record NounCase(NounCaseType type, ArrayList<String> phonemes) {}
     public enum VerbTenseType { PRESENT, PAST }
-    public record VerbTense(VerbTenseType type, String vowel_prefixed, String consonant_prefixed) {}
+    public record VerbTense(VerbTenseType type, ArrayList<String> phonemes) {}
     public enum WordOrder { SOV, SVO, VSO, VOS, OSV, OVS }
+    public enum PronounType {FIRST, SECOND, THIRD}
 
     @FunctionalInterface
-    public interface StructureRecord<MorphemeType, VowelPrefixed, ConsonantPrefixed, Morpheme> {
-        Morpheme apply(MorphemeType type, VowelPrefixed vowel_prefixed, ConsonantPrefixed consonant_prefixed);
+    public interface StructureRecord<MorphemeType, Phonemes, Morpheme> {
+        Morpheme apply(MorphemeType type, Phonemes phonemes);
     }
 
     public static <Type, Morpheme> Map<Type, Morpheme> generateStructure(
-            Vocabulary vocabulary, Random random, Type[] possible_morphemes,
-            StructureRecord<Type, String, String, Morpheme> morpheme_factory) {
+            Vocabulary vocabulary, Random random, Type[] possible_morphemes, ArrayList<ArrayList<VocabularySeed.Sound>> phonemes_template,
+            StructureRecord<Type, ArrayList<String>, Morpheme> morpheme_factory) {
 
         List<VocabularySeed.Consonant> consonant_values = vocabulary.getConsonantsValues();
         ArrayList<String> vowels = vocabulary.getVowels();
 
         Map<Type, Morpheme> structure = new HashMap<>();
         for (Type type : possible_morphemes) {
-            VocabularySeed.Consonant consonant = consonant_values.get(random.nextInt(consonant_values.size()));
-            String vowel = vowels.get(random.nextInt(vowels.size()));
+            ArrayList<String> filled_phonemes_list = new ArrayList<>();
 
-            String ending_vowel_prefixed = consonant.symbol();
-            String ending_consonant_prefixed = vowel.concat(consonant.symbol());
-            Morpheme new_morpheme = morpheme_factory.apply(type, ending_vowel_prefixed, ending_consonant_prefixed);
+            for (ArrayList<VocabularySeed.Sound> template: phonemes_template) {
+                String filled_phoneme_string = "";
+
+                for (VocabularySeed.Sound sound : template) {
+                    String singular_phoneme_string = "";
+
+                    if (sound == VocabularySeed.Sound.C) {
+                        VocabularySeed.Consonant consonant = consonant_values.get(random.nextInt(consonant_values.size()));
+                        singular_phoneme_string = consonant.symbol();
+                    } else if (sound == VocabularySeed.Sound.V) {
+                        String vowel = vowels.get(random.nextInt(vowels.size()));
+                        singular_phoneme_string = vowel;
+                    }
+
+                    if (!singular_phoneme_string.isEmpty()) filled_phoneme_string = filled_phoneme_string.concat(singular_phoneme_string);
+
+                }
+
+                if (!filled_phoneme_string.isEmpty()) filled_phonemes_list.add(filled_phoneme_string);
+            }
+
+            Morpheme new_morpheme = morpheme_factory.apply(type, filled_phonemes_list);
 
             structure.put(type, new_morpheme);
         }
@@ -36,12 +55,35 @@ class GrammarSeed {
 
     public static Map<NounCaseType, NounCase> generateNounCases(Vocabulary vocabulary, Random random) {
         NounCaseType[] possible_noun_cases = {NounCaseType.NOM, NounCaseType.ACC, NounCaseType.GEN, NounCaseType.DAT};
-        return generateStructure(vocabulary, random, possible_noun_cases, NounCase::new);
+
+        ArrayList<VocabularySeed.Sound> ending_vowel_prefixed = new ArrayList<>(List.of(
+                VocabularySeed.Sound.C
+        ));
+        ArrayList<VocabularySeed.Sound> ending_consonant_prefixed = new ArrayList<>(Arrays.asList(
+                VocabularySeed.Sound.V, VocabularySeed.Sound.C
+        ));
+        ArrayList<ArrayList<VocabularySeed.Sound>> desired_phonemes = new ArrayList<>(Arrays.asList(
+                ending_vowel_prefixed, ending_consonant_prefixed
+        ));
+
+        return generateStructure(vocabulary, random, possible_noun_cases, desired_phonemes, NounCase::new);
     }
 
     public static Map<VerbTenseType, VerbTense> generateVerbTenses(Vocabulary vocabulary, Random random) {
         VerbTenseType[] possible_verb_tenses = {VerbTenseType.PRESENT, VerbTenseType.PAST};
-        return generateStructure(vocabulary, random, possible_verb_tenses, VerbTense::new);
+
+        ArrayList<VocabularySeed.Sound> ending_vowel_prefixed = new ArrayList<>(List.of(
+                VocabularySeed.Sound.C
+        ));
+        ArrayList<VocabularySeed.Sound> ending_consonant_prefixed = new ArrayList<>(Arrays.asList(
+                VocabularySeed.Sound.V, VocabularySeed.Sound.C
+        ));
+        ArrayList<ArrayList<VocabularySeed.Sound>> desired_phonemes = new ArrayList<>(Arrays.asList(
+                ending_vowel_prefixed, ending_consonant_prefixed
+        ));
+
+
+        return generateStructure(vocabulary, random, possible_verb_tenses, desired_phonemes, VerbTense::new);
     }
 
     public static WordOrder generateWordOrder(Random random) {
@@ -68,8 +110,8 @@ public class Grammar extends GrammarSeed {
                 System.out.println(
                         "\t*" +
                         noun_case.type().toString() + ": " +
-                        noun_case.vowel_prefixed() + "/" +
-                        noun_case.consonant_prefixed());
+                        noun_case.phonemes().get(0) + "/" +
+                        noun_case.phonemes().get(1));
             }
 
             System.out.println("Verb Tenses: ");
@@ -78,8 +120,8 @@ public class Grammar extends GrammarSeed {
                 System.out.println(
                         "\t*" +
                         tense.type().toString() + ": " +
-                        tense.vowel_prefixed() + "/" +
-                        tense.consonant_prefixed());
+                        tense.phonemes().get(0) + "/" +
+                        tense.phonemes().get(1));
             }
 
             System.out.println("Word Order: " + word_order.toString());
