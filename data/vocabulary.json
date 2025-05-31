@@ -1,0 +1,86 @@
+{
+  "manner": [
+    "Nasal", "Plosive", "Affricate", "Fricative", "Liquid", "Glide"
+  ],
+
+  "symbols": [
+    "p", "t", "k", "b", "d", "g", "f", "s", "sh", "th", "h", "v", "z", "zh", "dh", "ch", "ts", "j", "dz",
+    "m", "n", "ng", "ny", "hr", "l", "r"
+  ],
+
+  "consonants": {
+    "p": {"symbol": "p", "manner": "Plosive", "voiced": false},
+    "t": {"symbol": "t", "manner": "Plosive", "voiced": false},
+    "k": {"symbol": "k", "manner": "Plosive", "voiced": false},
+    "b": {"symbol": "b", "manner": "Plosive", "voiced": true},
+    "d": {"symbol": "d", "manner": "Plosive", "voiced": true},
+    "g": {"symbol": "g", "manner": "Plosive", "voiced": true},
+    "f": {"symbol": "f", "manner": "Fricative", "voiced": false},
+    "s": {"symbol": "s", "manner": "Fricative", "voiced": false},
+    "sh": {"symbol": "š", "manner": "Fricative", "voiced": false},
+    "th": {"symbol": "þ", "manner": "Fricative", "voiced": false},
+    "h": {"symbol": "h", "manner": "Fricative", "voiced": false},
+    "v": {"symbol": "v", "manner": "Fricative", "voiced": true},
+    "z": {"symbol": "z", "manner": "Fricative", "voiced": true},
+    "zh": {"symbol": "ž", "manner": "Fricative", "voiced": true},
+    "dh": {"symbol": "ð", "manner": "Fricative", "voiced": true},
+    "ch": {"symbol": "č", "manner": "Affricate", "voiced": false},
+    "ts": {"symbol": "ʃ", "manner": "Affricate", "voiced": false},
+    "j": {"symbol": "j", "manner": "Affricate", "voiced": true},
+    "dz": {"symbol": "ʒ", "manner": "Affricate", "voiced": true},
+    "m": {"symbol": "m", "manner": "Nasal", "voiced": true},
+    "n": {"symbol": "n", "manner": "Nasal", "voiced": true},
+    "ng": {"symbol": "ŋ", "manner": "Nasal", "voiced": true},
+    "ny": {"symbol": "ñ", "manner": "Nasal", "voiced": true},
+    "hr": {"symbol": "ȟ", "manner": "Liquid", "voiced": false},
+    "l": {"symbol": "l", "manner": "Liquid", "voiced": true},
+    "r": {"symbol": "r", "manner": "Liquid", "voiced": true}
+  },
+
+  "vowels": [
+    ["a", "short"],
+    ["e", "short"],
+    ["i", "short"],
+    ["o", "short"],
+    ["u", "short"],
+    ["ä", "long"],
+    ["ë", "long"],
+    ["ï", "long"],
+    ["ö", "long"],
+    ["ü", "long"],
+    ["ai", "diphthong"],
+    ["ae", "diphthong"],
+    ["au", "diphthong"],
+    ["ao", "diphthong"],
+    ["ea", "diphthong"],
+    ["ei", "diphthong"],
+    ["eo", "diphthong"],
+    ["eu", "diphthong"],
+    ["ia", "diphthong"],
+    ["ie", "diphthong"],
+    ["io", "diphthong"],
+    ["iu", "diphthong"],
+    ["ua", "diphthong"],
+    ["ue", "diphthong"],
+    ["ui", "diphthong"],
+    ["uo", "diphthong"]
+  ],
+
+  "templates": [
+    ["C", "V"],
+    ["C", "V", "V", "C"],
+    ["V"],
+    ["V", "C"],
+    ["C", "V", "V"],
+    ["C", "C", "V"],
+    ["C", "V", "V", "C"]
+  ],
+
+  "nouns": [
+    "sun", "moon", "star", "sky", "cloud", "water", "fire", "earth", "stone", "mountain", "river", "rain",
+    "wind", "ice", "tree", "leaf", "fruit", "seed", "head", "hand", "foot", "eye", "ear", "mouth", "bone",
+    "blood", "heart", "hair", "man", "woman", "child", "mother", "father", "brother", "sister", "tribe",
+    "name", "voice", "dog", "wolf", "fish", "bird", "snake", "bear", "deer", "worm", "knife", "spear", "house",
+    "path", "bow", "nest", "food", "drink", "god", "spirit", "dream"
+  ]
+}

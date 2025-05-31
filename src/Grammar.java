@@ -3,7 +3,6 @@ import java.util.*;
 class GrammarSeed implements InterfaceLanguage {
 
     public sealed interface Feature<T> permits NounCase, VerbTense {
-        T type();
         ArrayList<String> phonemes();
     }
 
@@ -16,7 +15,9 @@ class GrammarSeed implements InterfaceLanguage {
         implements Feature<VerbTenseType> {}
 
     public enum WordOrder { SOV, SVO, VSO, VOS, OSV, OVS }
+
     public enum PronounType {FIRST, SECOND, THIRD}
+    public record Pronoun(PronounType type, String phoneme) {}
 
     @FunctionalInterface
     private interface StructureRecord<MorphemeType, Phonemes, Morpheme> {
@@ -142,17 +143,32 @@ class GrammarSeed implements InterfaceLanguage {
     public static WordOrder generateWordOrder(Random random) {
         return WordOrder.values()[random.nextInt(WordOrder.values().length)];
     }
+
+    public static Map<PronounType, Pronoun> generatePronouns(Random random, Vocabulary vocabulary) {
+        PronounType[] possible_pronoun_types = {PronounType.FIRST, PronounType.SECOND, PronounType.THIRD};
+        Map<PronounType, Pronoun> pronouns = new HashMap<>();
+
+        for (PronounType type : possible_pronoun_types) {
+            String new_word = vocabulary.generateWord(random);
+            Pronoun new_pronoun = new Pronoun(type, new_word);
+            pronouns.put(type, new_pronoun);
+        }
+
+        return pronouns;
+    }
 }
 
 public class Grammar extends GrammarSeed {
     private final Map<NounCaseType, NounCase> noun_cases;
     private final Map<VerbTenseType, VerbTense> verb_tenses;
     private final WordOrder word_order;
+    private final Map<PronounType, Pronoun> pronouns;
 
     public Grammar(boolean debug, Random random, Vocabulary vocabulary) {
         this.noun_cases = generateNounCases(vocabulary, random);
         this.verb_tenses = generateVerbTenses(vocabulary, random);
         this.word_order = generateWordOrder(random);
+        this.pronouns = generatePronouns(random, vocabulary);
 
         if (debug) {
             System.out.println("*** GRAMMAR ***");
@@ -179,5 +195,21 @@ public class Grammar extends GrammarSeed {
 
             System.out.println("Word Order: " + word_order.toString());
         }
+    }
+
+    public Map<NounCaseType, NounCase> getNounCases() {
+        return noun_cases;
+    }
+
+    public Map<VerbTenseType, VerbTense> getVerbTenses() {
+        return verb_tenses;
+    }
+
+    public WordOrder getWordOrder() {
+        return word_order;
+    }
+
+    public Map<PronounType, Pronoun> getPronouns() {
+        return pronouns;
     }
 }

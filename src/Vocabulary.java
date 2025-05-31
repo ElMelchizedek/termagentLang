@@ -5,8 +5,25 @@ import java.util.Random;
 import java.util.List;
 import java.util.HashMap;
 
-class VocabularySeed implements InterfaceLanguage {
-    public enum Manner {Nasal, Plosive, Affricate, Fricative, Liquid, Glide}
+interface SpecificationsVocabulary extends InterfaceLanguage {
+    enum Manner {Nasal, Plosive, Affricate, Fricative, Liquid, Glide}
+    enum VowelType {Short, Long, Diphthong}
+    Sound[][] templates = {
+            {Sound.C, Sound.V}, {Sound.C, Sound.V, Sound.C}, {Sound.V}, {Sound.V, Sound.C}, {Sound.C, Sound.V, Sound.V},
+            {Sound.C, Sound.C, Sound.V}, {Sound.C, Sound.V, Sound.V, Sound.C}
+    };
+    String[] starter_nouns = {
+            "sun", "moon", "star", "sky", "cloud", "water", "fire", "earth", "stone", "mountain", "river", "rain",
+            "wind", "ice", "tree", "leaf", "fruit", "seed", "head", "hand", "foot", "eye", "ear", "mouth", "bone",
+            "blood", "heart", "hair", "man", "woman", "child", "mother", "father", "brother", "sister", "tribe",
+            "name", "voice", "dog", "wolf", "fish", "bird", "snake", "bear", "deer", "worm", "knife", "spear", "house",
+            "path", "bow", "nest", "food", "drink", "god", "spirit", "dream"
+    };
+
+
+}
+
+class SeedVocabulary implements InterfaceLanguage, SpecificationsVocabulary {
 
     static public final String[] consonant_symbols = {
             "p", "t", "k", "b", "d", "g", "f", "s", "sh", "th", "h", "v", "z", "zh", "dh", "ch", "ts", "j", "dz",
@@ -55,19 +72,6 @@ class VocabularySeed implements InterfaceLanguage {
     };
     static public String[] long_vowels = {
             "ä", "ë", "ï", "ö", "ü",
-    };
-
-    static public Sound[][] templates = {
-            {Sound.C, Sound.V}, {Sound.C, Sound.V, Sound.C}, {Sound.V}, {Sound.V, Sound.C}, {Sound.C, Sound.V, Sound.V},
-            {Sound.C, Sound.C, Sound.V}, {Sound.C, Sound.V, Sound.V, Sound.C}
-    };
-
-    static public final String[] starter_nouns = {
-            "sun", "moon", "star", "sky", "cloud", "water", "fire", "earth", "stone", "mountain", "river", "rain",
-            "wind", "ice", "tree", "leaf", "fruit", "seed", "head", "hand", "foot", "eye", "ear", "mouth", "bone",
-            "blood", "heart", "hair", "man", "woman", "child", "mother", "father", "brother", "sister", "tribe",
-            "name", "voice", "dog", "wolf", "fish", "bird", "snake", "bear", "deer", "worm", "knife", "spear", "house",
-            "path", "bow", "nest", "food", "drink", "god", "spirit", "dream"
     };
 
     public static boolean isValidWord(ArrayList<Object> word) {
@@ -172,7 +176,7 @@ class VocabularySeed implements InterfaceLanguage {
 
 }
 
-public class Vocabulary extends VocabularySeed {
+public class Vocabulary extends SeedVocabulary {
     private final Map<String, Consonant> consonants = new HashMap<>();
     private final ArrayList<String> vowels = new ArrayList<>();
     private final ArrayList<Sound[]> templates = new ArrayList<>();
@@ -228,4 +232,10 @@ public class Vocabulary extends VocabularySeed {
     public ArrayList<String> getInventory() {
         return this.inventory;
     }
+
+    public String generateWord(Random random) {
+        return (generateWord(random, templates, consonants, vowels));
+    }
+
+    public void soundChange() {}
 }
