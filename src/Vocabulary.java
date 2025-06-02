@@ -1,17 +1,18 @@
-import java.io.FileNotFoundException;
+import java.io.StringReader;
 import java.lang.reflect.Type;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Random;
 import java.util.List;
 import java.util.HashMap;
+import java.util.stream.Collectors;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.google.gson.*;
 import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
 
 class SeedVocabulary implements InterfaceLanguage {
     enum Manner {Nasal, Plosive, Affricate, Fricative, Liquid, Glide};
@@ -42,10 +43,10 @@ class SeedVocabulary implements InterfaceLanguage {
                     if ( (phonemeA.manner() == Manner.Affricate) && (phonemeB.manner() == Manner.Liquid)) return false;
                 }
             } else if ( (word.get(i) instanceof String phonemeA) && (word.get(i + 1) instanceof String phonemeB)) {
-                String[] long_vowels = (String[]) Arrays.stream(possible_vowels)
+                ArrayList<String> long_vowels = (ArrayList<String>) Arrays.stream(possible_vowels)
                         .filter(vowel -> vowel.type == VowelType.Long)
                         .map(Vowel::symbol)
-                        .toArray();
+                        .collect(Collectors.toCollection(ArrayList::new));
 
                 // No chain of diphthongs.
                 if ( (phonemeA.length() > 1) || (phonemeB.length() > 1) ) return false;
@@ -131,7 +132,17 @@ class SeedVocabulary implements InterfaceLanguage {
     // I fucking hate this shit.
     public void generateSpecifications(String file) {
         Gson gson = new Gson();
-        JsonObject root = JsonParser.parseString(file).getAsJsonObject();
+        JsonObject root = null;
+        try {
+            String json_content = new String(Files.readAllBytes(Paths.get(file)));
+            JsonReader reader = new JsonReader(new StringReader(json_content));
+            reader.setStrictness(Strictness.LENIENT);
+            root = JsonParser.parseReader(reader).getAsJsonObject();
+        } catch (Exception e) {
+            System.out.println("ERROR: " + e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
+        }
 
         JsonArray symbols_array = root.getAsJsonArray("symbols");
         consonant_symbols = gson.fromJson(symbols_array, String[].class);
@@ -184,7 +195,7 @@ public class Vocabulary extends SeedVocabulary {
             // Get vowel symbols.
             ArrayList<String> vowels = (ArrayList<String>) Arrays.stream(possible_vowels)
                             .map(Vowel::symbol)
-                            .toList();
+                            .collect(Collectors.toCollection(ArrayList::new));
 
             inventory.add(generateWord(random, templates, consonants, vowels));
         }
@@ -220,7 +231,7 @@ public class Vocabulary extends SeedVocabulary {
         // Get vowel symbols.
         ArrayList<String> vowels = (ArrayList<String>) Arrays.stream(possible_vowels)
                 .map(Vowel::symbol)
-                .toList();
+                .collect(Collectors.toCollection(ArrayList::new));
 
         return (generateWord(random, templates, consonants, vowels));
     }
