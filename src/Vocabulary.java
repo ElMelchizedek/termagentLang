@@ -1,3 +1,5 @@
+import java.io.FileNotFoundException;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
@@ -5,74 +7,22 @@ import java.util.Random;
 import java.util.List;
 import java.util.HashMap;
 
-interface SpecificationsVocabulary extends InterfaceLanguage {
-    enum Manner {Nasal, Plosive, Affricate, Fricative, Liquid, Glide}
-    enum VowelType {Short, Long, Diphthong}
-    Sound[][] templates = {
-            {Sound.C, Sound.V}, {Sound.C, Sound.V, Sound.C}, {Sound.V}, {Sound.V, Sound.C}, {Sound.C, Sound.V, Sound.V},
-            {Sound.C, Sound.C, Sound.V}, {Sound.C, Sound.V, Sound.V, Sound.C}
-    };
-    String[] starter_nouns = {
-            "sun", "moon", "star", "sky", "cloud", "water", "fire", "earth", "stone", "mountain", "river", "rain",
-            "wind", "ice", "tree", "leaf", "fruit", "seed", "head", "hand", "foot", "eye", "ear", "mouth", "bone",
-            "blood", "heart", "hair", "man", "woman", "child", "mother", "father", "brother", "sister", "tribe",
-            "name", "voice", "dog", "wolf", "fish", "bird", "snake", "bear", "deer", "worm", "knife", "spear", "house",
-            "path", "bow", "nest", "food", "drink", "god", "spirit", "dream"
-    };
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.reflect.TypeToken;
 
+class SeedVocabulary implements InterfaceLanguage {
+    enum Manner {Nasal, Plosive, Affricate, Fricative, Liquid, Glide};
+    enum VowelType {Short, Long, Diphthong};
+    record Vowel(String symbol, VowelType type) {}
 
-}
-
-class SeedVocabulary implements InterfaceLanguage, SpecificationsVocabulary {
-
-    static public final String[] consonant_symbols = {
-            "p", "t", "k", "b", "d", "g", "f", "s", "sh", "th", "h", "v", "z", "zh", "dh", "ch", "ts", "j", "dz",
-            "m", "n", "ng", "ny", "hr", "l", "r"
-    };
-    static public final Map<String, Consonant> possible_consonants = Map.ofEntries(
-            Map.entry("p", new Consonant("p", Manner.Plosive, false)),
-            Map.entry("t", new Consonant("t", Manner.Plosive, false)),
-            Map.entry("k", new Consonant("k", Manner.Plosive, false)),
-
-            Map.entry("b", new Consonant("b", Manner.Plosive, true)),
-            Map.entry("d", new Consonant("d", Manner.Plosive, true)),
-            Map.entry("g", new Consonant("g", Manner.Plosive, true)),
-
-            Map.entry("f", new Consonant("f", Manner.Fricative, false)),
-            Map.entry("s", new Consonant("s", Manner.Fricative, false)),
-            Map.entry("sh", new Consonant("š", Manner.Fricative, false)),
-            Map.entry("th", new Consonant("þ", Manner.Fricative, false)),
-            Map.entry("h", new Consonant("h", Manner.Fricative, false)),
-
-            Map.entry("v", new Consonant("v", Manner.Fricative, true)),
-            Map.entry("z", new Consonant("z", Manner.Fricative, true)),
-            Map.entry("zh", new Consonant("ž", Manner.Fricative, true)),
-            Map.entry("dh", new Consonant("ð", Manner.Fricative, true)),
-
-            Map.entry("ch", new Consonant("č", Manner.Affricate, false)),
-            Map.entry("ts", new Consonant("ʃ", Manner.Affricate, false)),
-
-            Map.entry("j", new Consonant("j", Manner.Affricate, true)),
-            Map.entry("dz", new Consonant("ʒ", Manner.Affricate, true)),
-
-            Map.entry("m", new Consonant("m", Manner.Nasal, true)),
-            Map.entry("n", new Consonant("n", Manner.Nasal, true)),
-            Map.entry("ng", new Consonant("ŋ", Manner.Nasal, true)),
-            Map.entry("ny", new Consonant("ñ", Manner.Nasal, true)),
-
-            Map.entry("hr", new Consonant("ȟ", Manner.Liquid, false)),
-
-            Map.entry("l", new Consonant("l", Manner.Liquid, true)),
-            Map.entry("r", new Consonant("r", Manner.Liquid, true))
-    );
-
-    static public String[] possible_vowels = {
-            "a", "e", "i", "o", "u", "ä", "ë", "ï", "ö", "ü", "ai", "ae", "au", "ao", "ea", "ei", "eo", "eu",
-            "ia", "ie", "io", "iu", "ua", "ue", "ui", "uo"
-    };
-    static public String[] long_vowels = {
-            "ä", "ë", "ï", "ö", "ü",
-    };
+    static String[] consonant_symbols;
+    static Map <String, Consonant> possible_consonants;
+    static Vowel[] possible_vowels;
+    static Sound[][] templates;
+    static String[] starter_nouns;
 
     public static boolean isValidWord(ArrayList<Object> word) {
         for (int i = 0; i < (word.size() - 1); i++) {
@@ -92,6 +42,10 @@ class SeedVocabulary implements InterfaceLanguage, SpecificationsVocabulary {
                     if ( (phonemeA.manner() == Manner.Affricate) && (phonemeB.manner() == Manner.Liquid)) return false;
                 }
             } else if ( (word.get(i) instanceof String phonemeA) && (word.get(i + 1) instanceof String phonemeB)) {
+                String[] long_vowels = (String[]) Arrays.stream(possible_vowels)
+                        .filter(vowel -> vowel.type == VowelType.Long)
+                        .map(Vowel::symbol)
+                        .toArray();
 
                 // No chain of diphthongs.
                 if ( (phonemeA.length() > 1) || (phonemeB.length() > 1) ) return false;
@@ -149,13 +103,13 @@ class SeedVocabulary implements InterfaceLanguage, SpecificationsVocabulary {
         return realWord;
     }
 
-    public static void generateSpecifications(Random random, Map<String, Consonant> permitted_consonants,
-                                              ArrayList<String> permitted_vowels, ArrayList<Sound[]> permitted_templates) {
+    public static void generatePermittances(Random random, Map<String, Consonant> permitted_consonants,
+                                              ArrayList<Vowel> permitted_vowels, ArrayList<Sound[]> permitted_templates) {
 
         for (String symbol : consonant_symbols) {
             if (random.nextBoolean()) permitted_consonants.put(symbol, possible_consonants.get(symbol));
         }
-        for (String vowel : possible_vowels) {
+        for (Vowel vowel : possible_vowels) {
             if (random.nextBoolean()) permitted_vowels.add(vowel);
         }
         for (Sound[] template: templates) {
@@ -174,23 +128,46 @@ class SeedVocabulary implements InterfaceLanguage, SpecificationsVocabulary {
         }
     }
 
+    // I fucking hate this shit.
+    public void generateSpecifications(String file) {
+        Gson gson = new Gson();
+        JsonObject root = JsonParser.parseString(file).getAsJsonObject();
+
+        JsonArray symbols_array = root.getAsJsonArray("symbols");
+        consonant_symbols = gson.fromJson(symbols_array, String[].class);
+
+        JsonObject consonants_object = root.getAsJsonObject("consonants");
+        Type consonants_map_type = new TypeToken<Map<String, Consonant>>(){}.getType();
+        possible_consonants = gson.fromJson(consonants_object, consonants_map_type);
+
+        JsonArray vowels_array = root.getAsJsonArray("vowels");
+        possible_vowels = gson.fromJson(vowels_array, Vowel[].class);
+
+        JsonArray templates_array = root.getAsJsonArray("templates");
+        templates = gson.fromJson(templates_array, Sound[][].class);
+
+        JsonArray nouns_array = root.getAsJsonArray("nouns");
+        starter_nouns = gson.fromJson(nouns_array, String[].class);
+    }
+
 }
 
 public class Vocabulary extends SeedVocabulary {
     private final Map<String, Consonant> consonants = new HashMap<>();
-    private final ArrayList<String> vowels = new ArrayList<>();
+    private final ArrayList<Vowel> vowels = new ArrayList<>();
     private final ArrayList<Sound[]> templates = new ArrayList<>();
     private final ArrayList<String> inventory = new ArrayList<>();
 
-    public Vocabulary(boolean debug, Random random) {
-        generateSpecifications(random, consonants, vowels, templates);
+    public Vocabulary(boolean debug, Random random, String path) {
+        generateSpecifications(path);
+        generatePermittances(random, consonants, vowels, templates);
 
         if (debug) {
             System.out.print("Permitted consonants: ");
             for (Consonant phoneme : consonants.values()) System.out.print(phoneme.symbol() + ",");
             System.out.println();
             System.out.print("Pemitted vowels: ");
-            for (String vowel: vowels) System.out.print(vowel + ",");
+            for (Vowel vowel: vowels) System.out.print(vowel.symbol() + ",");
             System.out.println();
             System.out.print("Permitted templates: ");
             for (Sound[] template : templates) {
@@ -204,6 +181,11 @@ public class Vocabulary extends SeedVocabulary {
         }
 
         for (int i = 0; i < starter_nouns.length; i++ ) {
+            // Get vowel symbols.
+            ArrayList<String> vowels = (ArrayList<String>) Arrays.stream(possible_vowels)
+                            .map(Vowel::symbol)
+                            .toList();
+
             inventory.add(generateWord(random, templates, consonants, vowels));
         }
 
@@ -217,13 +199,14 @@ public class Vocabulary extends SeedVocabulary {
         System.out.println("\n\n");
     }
 
+
     public Map<String, Consonant> getConsonants() {
         return this.consonants;
     }
     public List<Consonant> getConsonantsValues() {
         return new ArrayList<>(consonants.values());
     }
-    public ArrayList<String> getVowels() {
+    public ArrayList<Vowel> getVowels() {
         return this.vowels;
     }
     public ArrayList<Sound[]> getTemplates() {
@@ -234,6 +217,11 @@ public class Vocabulary extends SeedVocabulary {
     }
 
     public String generateWord(Random random) {
+        // Get vowel symbols.
+        ArrayList<String> vowels = (ArrayList<String>) Arrays.stream(possible_vowels)
+                .map(Vowel::symbol)
+                .toList();
+
         return (generateWord(random, templates, consonants, vowels));
     }
 

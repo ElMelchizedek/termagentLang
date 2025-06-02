@@ -11,7 +11,7 @@ public class Language {
 
     public Language(boolean debug) {
         Random random = new Random();
-        this.vocabulary = new Vocabulary(debug, random);
+        this.vocabulary = new Vocabulary(debug, random, "data/vocabulary.json");
         this.grammar = new Grammar(debug, random, vocabulary);
     }
 

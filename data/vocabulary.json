@@ -1,8 +1,4 @@
 {
-  "manner": [
-    "Nasal", "Plosive", "Affricate", "Fricative", "Liquid", "Glide"
-  ],
-
   "symbols": [
     "p", "t", "k", "b", "d", "g", "f", "s", "sh", "th", "h", "v", "z", "zh", "dh", "ch", "ts", "j", "dz",
     "m", "n", "ng", "ny", "hr", "l", "r"

@@ -29,7 +29,7 @@ class GrammarSeed implements InterfaceLanguage {
             StructureRecord<Type, ArrayList<String>, Morpheme> morpheme_factory) {
 
         List<Consonant> consonant_values = vocabulary.getConsonantsValues();
-        ArrayList<String> vowels = vocabulary.getVowels();
+        ArrayList<SeedVocabulary.Vowel> vowels = vocabulary.getVowels();
 
         Map<Type, Morpheme> structure = new HashMap<>();
         for (Type type : possible_morphemes) {
@@ -45,7 +45,7 @@ class GrammarSeed implements InterfaceLanguage {
                         Consonant consonant = consonant_values.get(random.nextInt(consonant_values.size()));
                         singular_phoneme_string = consonant.symbol();
                     } else if (sound == Sound.V) {
-                        String vowel = vowels.get(random.nextInt(vowels.size()));
+                        String vowel = vowels.get(random.nextInt(vowels.size())).symbol();
                         singular_phoneme_string = vowel;
                     }
 
