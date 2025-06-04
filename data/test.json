@@ -2,5 +2,8 @@
   "primitive": "value",
   "object": {
     "key": "value"
-  }
+  },
+  "array": [
+    "alpha", "beta"
+  ]
 }

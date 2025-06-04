@@ -24,46 +24,116 @@ class Token {
 }
 
 interface Vertex {
-    String parse(Token token, Deque<Vertex> vertex_stack, Deque<ParserState> state_stack, String current_key);
+    void parse(Token token, Deque<Vertex> vertex_stack, Deque<ParserState> state_stack);
+    String toString(int indent);
 }
 class JsonArray implements Vertex {
-    private ArrayList<Token> elements = new ArrayList<>();
+    private ArrayList<Vertex> elements = new ArrayList<>();
 
     public JsonArray() {}
 
-    public void setElements(ArrayList<Token> elements) { this.elements = elements; }
-    public ArrayList<Token> getElements() { return elements; }
+    public void setElements(ArrayList<Vertex> elements) { this.elements = elements; }
+    public ArrayList<Vertex> getElements() { return elements; }
 
-    public String parse(Token token, Deque<Vertex> vertex_stack, Deque<ParserState> state_stack, String current_key) {
-        return current_key;
+    public void parse(Token token, Deque<Vertex> vertex_stack, Deque<ParserState> state_stack) {
+        if (state_stack.peek() == ParserState.Array) {
+            if (token.getForm() == TokenForm.String)  {
+                JsonPrimitive new_element = new JsonPrimitive(token.getData());
+                ((JsonArray) vertex_stack.peek()).getElements().add(new_element);
+            }
+            else if (token.getForm() == TokenForm.ArrayBoundaryEnd) {
+                vertex_stack.pop();
+                state_stack.pop();
+            }
+        }
+    }
+
+    @Override
+    public String toString(int indent) {
+        StringBuilder builder = new StringBuilder("[\n");
+        String spaces = "  ".repeat(indent + 1);
+
+        for (Vertex element : elements) {
+            builder.append(spaces)
+                    .append(element.toString(indent + 1))
+                    .append(",\n");
+        }
+
+        if (!elements.isEmpty()) {
+            builder.setLength(builder.length() - 2);
+        }
+
+        return builder.append("\n")
+                .append(". ".repeat(indent))
+                .append("]")
+                .toString();
     }
 }
 class JsonObject implements Vertex {
     private Map<String, Vertex> properties = new HashMap<>();
+    private String current_key = new String();
 
     public JsonObject() {};
 
     public void setProperties(Map<String, Vertex> properties) { this.properties = properties; }
     public Map<String, Vertex> getProperties() { return properties; }
 
-    public String parse(Token token, Deque<Vertex> vertex_stack, Deque<ParserState> state_stack, String current_key) {
-        if (token.getForm() == TokenForm.ObjectBoundaryBegin) {
-            JsonObject new_property = new JsonObject();
-            ((JsonObject) vertex_stack.peek()).getProperties().put(current_key, new_property);
-            vertex_stack.push(new_property);
-            state_stack.push(ParserState.Object);
-        } else if (token.getForm() == TokenForm.ObjectBoundaryEnd) {
-            vertex_stack.pop();
-            state_stack.pop();
-            return null;
-        } else if (token.getForm() == TokenForm.String) {
-            JsonPrimitive new_property = new JsonPrimitive(token.getData());
-            ((JsonObject) vertex_stack.peek()).getProperties().put(current_key, new_property);
-        } else if (token.getForm() == TokenForm.Deliminator) {
-            return null;
+    @Override
+    public void parse(Token token, Deque<Vertex> vertex_stack, Deque<ParserState> state_stack) {
+        if (state_stack.peek() == ParserState.ObjectExpectingKey) {
+            if (token.getForm() == TokenForm.String) {
+                StringBuilder builder = new StringBuilder(token.getData().size());
+                for (Character character : token.getData()) builder.append(character);
+                current_key = builder.toString();
+                state_stack.pop();
+                state_stack.push(ParserState.ObjectExpectingValue);
+            }
+        } else if (state_stack.peek() == ParserState.ObjectExpectingValue) {
+            if (token.getForm() == TokenForm.ObjectBoundaryBegin) {
+                JsonObject new_property = new JsonObject();
+                ((JsonObject) vertex_stack.peek()).getProperties().put(current_key, new_property);
+                vertex_stack.push(new_property);
+                state_stack.push(ParserState.ObjectExpectingKey);
+            } else if (token.getForm() == TokenForm.ObjectBoundaryEnd) {
+                vertex_stack.pop();
+                state_stack.pop();
+            } else if (token.getForm() == TokenForm.String) {
+                JsonPrimitive new_property = new JsonPrimitive(token.getData());
+                ((JsonObject) vertex_stack.peek()).getProperties().put(current_key, new_property);
+            } else if (token.getForm() == TokenForm.Deliminator) {
+                state_stack.pop();
+                state_stack.push(ParserState.ObjectExpectingKey);
+            } else if (token.getForm() == TokenForm.ArrayBoundaryBegin) {
+                JsonArray new_property = new JsonArray();
+                ((JsonObject) vertex_stack.peek()).getProperties().put(current_key, new_property);
+                vertex_stack.push(new_property);
+                state_stack.push(ParserState.Array);
+            }
+        }
+    }
+
+    @Override
+    public String toString(int indent) {
+        StringBuilder builder = new StringBuilder("{\n");
+        String spaces = "  ".repeat(indent + 1);
+
+        for (Map.Entry<String, Vertex> entry : properties.entrySet()) {
+            builder.append(spaces)
+                    .append('"')
+                    .append(entry.getKey())
+                    .append("\": ")
+                    .append(entry.getValue().toString(indent + 1))
+                    .append(",\n");
         }
 
-        return current_key;
+        if (!properties.isEmpty()) {
+            builder.setLength(builder.length() - 2); // Remove trailing ",\n".
+        }
+
+        return builder.append("\n")
+                .append("  ".repeat(indent))
+                .append("}")
+                .toString();
     }
 
 }
@@ -76,12 +146,20 @@ class JsonPrimitive implements Vertex {
     public void setData(ArrayList<Character> data) { this.data = data; }
     public ArrayList<Character> getData() { return data; }
 
-    public String parse(Token token, Deque<Vertex> vertex_stack, Deque<ParserState> state_stack, String current_key) {
-        return current_key;
+    public void parse(Token token, Deque<Vertex> vertex_stack, Deque<ParserState> state_stack) {
+    }
+
+    @Override
+    public String toString(int indent) {
+        char[] array = new char[data.size()];
+        for (int i = 0; i < data.size(); i++) {
+            array[i] = data.get(i);
+        }
+        return new String(array);
     }
 }
 
-enum ParserState { Object, Key, Value, }
+enum ParserState { ObjectExpectingKey, ObjectExpectingValue, Array }
 
 public class JSON {
 
@@ -120,29 +198,10 @@ public class JSON {
         Deque<ParserState> state_stack = new ArrayDeque<>();
         // Create root vertex and top of state stack.
         vertex_stack.push(new JsonObject());
-        state_stack.push(ParserState.Object);
-        // State variables.
-        String current_key = null;
-        boolean parse_value = false;
+        state_stack.push(ParserState.ObjectExpectingKey);
 
         for (Token token: tokens) {
-            if (parse_value == true) {
-                vertex_stack.peek().parse(token, vertex_stack, state_stack, current_key);
-                parse_value = false;
-                current_key = null;
-            }
-            else if (state_stack.peek() == ParserState.Object) {
-                if (token.getForm() == TokenForm.String && current_key == null) {
-                    StringBuilder builder = new StringBuilder(token.getData().size());
-                    for (Character character : token.getData()) builder.append(character);
-                    current_key = builder.toString();
-                }
-                if (current_key != null) {
-                    if (token.getForm() == TokenForm.Definer) {
-                        parse_value = true;
-                    }
-                }
-            }
+            vertex_stack.peek().parse(token, vertex_stack, state_stack);
         }
 
         // Returns the root vertex.
@@ -179,5 +238,4 @@ public class JSON {
 
         return null;
     }
-
 }
