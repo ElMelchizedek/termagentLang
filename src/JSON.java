@@ -42,6 +42,13 @@ class JsonArray implements Vertex {
                 assert vertex_stack.peek() != null;
                 ((JsonArray) vertex_stack.peek()).getElements().add(new_element);
             }
+            else if (token.getForm() == TokenForm.ArrayBoundaryBegin) {
+                JsonArray new_element = new JsonArray();
+                assert vertex_stack.peek() != null;
+                ((JsonArray) vertex_stack.peek()).getElements().add(new_element);
+                vertex_stack.push(new_element);
+                state_stack.push(ParserState.Array);
+            }
             else if (token.getForm() == TokenForm.ArrayBoundaryEnd) {
                 vertex_stack.pop();
                 state_stack.pop();
