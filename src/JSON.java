@@ -25,6 +25,7 @@ class Token {
 
 interface Vertex {
     void parse(Token token, Deque<Vertex> vertex_stack, Deque<ParserState> state_stack);
+    boolean validate();
     String toString(int indent);
 }
 class JsonArray implements Vertex {
@@ -35,6 +36,7 @@ class JsonArray implements Vertex {
     public void setElements(ArrayList<Vertex> elements) { this.elements = elements; }
     public ArrayList<Vertex> getElements() { return elements; }
 
+    @Override
     public void parse(Token token, Deque<Vertex> vertex_stack, Deque<ParserState> state_stack) {
         if (state_stack.peek() == ParserState.Array) {
             if (token.getForm() == TokenForm.String)  {
@@ -53,8 +55,18 @@ class JsonArray implements Vertex {
                 vertex_stack.pop();
                 state_stack.pop();
             }
+            else if (token.getForm() == TokenForm.ObjectBoundaryBegin) {
+                JsonObject new_element = new JsonObject();
+                assert vertex_stack.peek() != null;
+                ((JsonArray) vertex_stack.peek()).getElements().add(new_element);
+                vertex_stack.push(new_element);
+                state_stack.push(ParserState.ObjectExpectingKey);
+            }
         }
     }
+
+    @Override
+    public boolean validate() { return true; }
 
     @Override
     public String toString(int indent) {
@@ -131,6 +143,37 @@ class JsonObject implements Vertex {
     }
 
     @Override
+    public boolean validate() {
+        for (Map.Entry<String, Vertex> entry : properties.entrySet()) {
+            if (entry.getValue() instanceof JsonPrimitive) {
+                JsonPrimitive vertex = (JsonPrimitive) entry.getValue();
+
+                StringBuilder builder = new StringBuilder(vertex.getData().size());
+                for (Character character : vertex.getData()) {
+                    builder.append(character);
+                }
+                String data = builder.toString();
+
+                if (data.equals("true")) {
+                    properties.replace(entry.getKey(), new JsonBoolean(true));
+                }
+                else if (data.equals("false")) {
+                    properties.replace(entry.getKey(), new JsonBoolean(false));
+                }
+                try {
+                    int value = Integer.parseInt(data);
+                    properties.replace(entry.getKey(), new JsonInteger(value));
+                } catch  (Exception e) {}
+            }
+            else if (entry.getValue() instanceof JsonObject) {
+                return entry.getValue().validate();
+            }
+        }
+
+        return true;
+    }
+
+    @Override
     public String toString(int indent) {
         StringBuilder builder = new StringBuilder("{\n");
         String spaces = "  ".repeat(indent + 1);
@@ -165,8 +208,11 @@ class JsonPrimitive implements Vertex {
     public void setData(ArrayList<Character> data) { this.data = data; }
     public ArrayList<Character> getData() { return data; }
 
-    public void parse(Token token, Deque<Vertex> vertex_stack, Deque<ParserState> state_stack) {
-    }
+    @Override
+    public void parse(Token token, Deque<Vertex> vertex_stack, Deque<ParserState> state_stack) {}
+
+    @Override
+    public boolean validate() { return true; }
 
     @Override
     public String toString(int indent) {
@@ -175,6 +221,43 @@ class JsonPrimitive implements Vertex {
             array[i] = data.get(i);
         }
         return new String(array);
+    }
+}
+class JsonInteger implements Vertex {
+    private int value;
+
+    public JsonInteger(int value) { this.value = value; }
+    public JsonInteger() {}
+
+    public void setValue(int data) { this.value = value; }
+    public int getValue() { return value; }
+
+    @Override
+    public void parse(Token token, Deque<Vertex> vertex_stack, Deque<ParserState> state_stack) {}
+
+    @Override
+    public boolean validate() { return true; }
+
+    @Override
+    public String toString(int indent) {
+        return Integer.toString(value);
+    }
+}
+class JsonBoolean implements Vertex {
+    private boolean value;
+
+    public JsonBoolean(boolean value) { this.value = value; }
+    public JsonBoolean() {}
+
+    @Override
+    public void parse(Token token, Deque<Vertex> vertex_stack, Deque<ParserState> state_stack) {}
+
+    @Override
+    public boolean validate() { return true; }
+
+    @Override
+    public String toString(int indent) {
+        return Boolean.toString(value);
     }
 }
 
@@ -227,6 +310,10 @@ public class JSON {
         return (JsonObject) vertex_stack.getLast();
     }
 
+    static boolean validateTree(JsonObject root) {
+        return true;
+    }
+
     public static Vertex jsonRead(String path) {
         FileInputStream stream;
         try {
@@ -246,7 +333,10 @@ public class JSON {
 
             // Build tree out of the Data from the tokens list.
             // We only require the Root vertex to have the whole tree.
-            return generateTree(tokens);
+            JsonObject root = generateTree(tokens);
+
+            // Now we validate the tree to make sure there's no errors in the JSON, and to get the booleans and integers.
+
 
         } catch (Exception e) {
             System.out.println("ERROR: " + e.getMessage());

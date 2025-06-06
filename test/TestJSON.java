@@ -35,7 +35,7 @@ public class TestJSON {
         verified_root.getProperties().put("primitive",
                 new JsonPrimitive(stringToCharacterList("value")));
 
-        JsonObject test_root = readFile("data/test_json/primitive.json");
+        JsonObject test_root = readFile("data/test_json/primitivestring.json");
         assertEquals(verified_root.toString(0), test_root.toString(0));
     }
     @Test
@@ -92,6 +92,20 @@ public class TestJSON {
         verified_root.getProperties().put("array", array);
 
         JsonObject test_root = readFile("data/test_json/arraynested.json");
+        assertEquals(verified_root.toString(0), test_root.toString(0));
+    }
+    @Test
+    public void testJsonObjectInArray() {
+        JsonObject verified_root = new JsonObject();
+        JsonArray array = new JsonArray();
+        JsonObject object = new JsonObject();
+
+        object.getProperties().put("key",
+                new JsonPrimitive(stringToCharacterList("value")));
+        array.getElements().add(object);
+        verified_root.getProperties().put("array", array);
+
+        JsonObject test_root = readFile("data/test_json/objectinarray.json");
         assertEquals(verified_root.toString(0), test_root.toString(0));
     }
 
