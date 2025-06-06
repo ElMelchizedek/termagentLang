@@ -39,6 +39,7 @@ class JsonArray implements Vertex {
         if (state_stack.peek() == ParserState.Array) {
             if (token.getForm() == TokenForm.String)  {
                 JsonPrimitive new_element = new JsonPrimitive(token.getData());
+                assert vertex_stack.peek() != null;
                 ((JsonArray) vertex_stack.peek()).getElements().add(new_element);
             }
             else if (token.getForm() == TokenForm.ArrayBoundaryEnd) {
@@ -71,9 +72,9 @@ class JsonArray implements Vertex {
 }
 class JsonObject implements Vertex {
     private Map<String, Vertex> properties = new HashMap<>();
-    private String current_key = new String();
+    private String current_key;
 
-    public JsonObject() {};
+    public JsonObject() {}
 
     public void setProperties(Map<String, Vertex> properties) { this.properties = properties; }
     public Map<String, Vertex> getProperties() { return properties; }
@@ -87,27 +88,37 @@ class JsonObject implements Vertex {
                 current_key = builder.toString();
                 state_stack.pop();
                 state_stack.push(ParserState.ObjectExpectingValue);
+
             }
+
         } else if (state_stack.peek() == ParserState.ObjectExpectingValue) {
             if (token.getForm() == TokenForm.ObjectBoundaryBegin) {
                 JsonObject new_property = new JsonObject();
+                assert vertex_stack.peek() != null;
                 ((JsonObject) vertex_stack.peek()).getProperties().put(current_key, new_property);
                 vertex_stack.push(new_property);
                 state_stack.push(ParserState.ObjectExpectingKey);
+
             } else if (token.getForm() == TokenForm.ObjectBoundaryEnd) {
                 vertex_stack.pop();
                 state_stack.pop();
+
             } else if (token.getForm() == TokenForm.String) {
                 JsonPrimitive new_property = new JsonPrimitive(token.getData());
+                assert vertex_stack.peek() != null;
                 ((JsonObject) vertex_stack.peek()).getProperties().put(current_key, new_property);
+
             } else if (token.getForm() == TokenForm.Deliminator) {
                 state_stack.pop();
                 state_stack.push(ParserState.ObjectExpectingKey);
+
             } else if (token.getForm() == TokenForm.ArrayBoundaryBegin) {
                 JsonArray new_property = new JsonArray();
+                assert vertex_stack.peek() != null;
                 ((JsonObject) vertex_stack.peek()).getProperties().put(current_key, new_property);
                 vertex_stack.push(new_property);
                 state_stack.push(ParserState.Array);
+
             }
         }
     }
@@ -136,6 +147,7 @@ class JsonObject implements Vertex {
                 .toString();
     }
 
+    // For testing
 }
 class JsonPrimitive implements Vertex {
     private ArrayList<Character> data;
@@ -188,12 +200,11 @@ public class JSON {
             }
         }
 
-        if (tokens == null) throw new NullPointerException("Parsed tokens ArrayList returned null.");
-        else return tokens;
+        return tokens;
 
     }
 
-    static JsonObject generateTree(ArrayList<Token> tokens) throws Exception {
+    static JsonObject generateTree(ArrayList<Token> tokens) {
         Deque<Vertex> vertex_stack = new ArrayDeque<>();
         Deque<ParserState> state_stack = new ArrayDeque<>();
         // Create root vertex and top of state stack.
@@ -201,6 +212,7 @@ public class JSON {
         state_stack.push(ParserState.ObjectExpectingKey);
 
         for (Token token: tokens) {
+            assert vertex_stack.peek() != null;
             vertex_stack.peek().parse(token, vertex_stack, state_stack);
         }
 
@@ -208,8 +220,8 @@ public class JSON {
         return (JsonObject) vertex_stack.getLast();
     }
 
-    public static Vertex jsonRead(String path) throws Exception {
-        FileInputStream stream = null;
+    public static Vertex jsonRead(String path) {
+        FileInputStream stream;
         try {
             // Load the file into memory.
             stream = new FileInputStream(path);
@@ -227,8 +239,7 @@ public class JSON {
 
             // Build tree out of the Data from the tokens list.
             // We only require the Root vertex to have the whole tree.
-            JsonObject root = generateTree(tokens);
-            return root;
+            return generateTree(tokens);
 
         } catch (Exception e) {
             System.out.println("ERROR: " + e.getMessage());

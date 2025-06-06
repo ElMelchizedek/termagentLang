@@ -5,5 +5,10 @@
   },
   "array": [
     "alpha", "beta"
-  ]
+  ],
+  "outer": {
+    "inner": {
+      "hello": "goodbye"
+    }
+  }
 }
