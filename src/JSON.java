@@ -1,16 +1,30 @@
 import java.io.FileInputStream;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 enum TokenForm {Definer, Deliminator, ArrayBoundaryBegin, ObjectBoundaryBegin, ArrayBoundaryEnd,
-    ObjectBoundaryEnd, String}
+    ObjectBoundaryEnd, String, Integer, Boolean}
+
 class Token {
     private TokenForm form;
+    // Can't be fucked to implement composition with a Token interface to delineate integers, booleans, and others.
     private ArrayList<Character> data;
+    private int value;
+    private boolean status;
 
     public Token(TokenForm form, ArrayList<Character> data) {
         this.form = form;
         this.data = data;
+    }
+    public Token(TokenForm form, int value) {
+        this.form = form;
+        this.value = value;
+    }
+    public Token(TokenForm form, boolean status) {
+        this.form = form;
+        this.status = status;
     }
     public Token(TokenForm form) {
         this.form = form;
@@ -18,6 +32,8 @@ class Token {
 
     public TokenForm getForm() { return form; }
     public ArrayList<Character> getData() { return data; }
+    public int getValue() { return value; }
+    public boolean getStatus() { return status; }
 
     public void setForm(TokenForm form) { this.form = form; }
     public void addToData(Character datum)  { data.add(datum); }
@@ -138,6 +154,15 @@ class JsonObject implements Vertex {
                 vertex_stack.push(new_property);
                 state_stack.push(ParserState.Array);
 
+            } else if (token.getForm() == TokenForm.Integer) {
+                JsonInteger new_property = new JsonInteger(token.getValue());
+                assert vertex_stack.peek() != null;
+                ((JsonObject) vertex_stack.peek()).getProperties().put(current_key, new_property);
+
+            } else if (token.getForm() == TokenForm.Boolean) {
+                JsonBoolean new_property = new JsonBoolean(token.getStatus());
+                assert vertex_stack.peek() != null;
+                ((JsonObject) vertex_stack.peek()).getProperties().put(current_key, new_property);
             }
         }
     }
@@ -154,16 +179,16 @@ class JsonObject implements Vertex {
                 }
                 String data = builder.toString();
 
-                if (data.equals("true")) {
-                    properties.replace(entry.getKey(), new JsonBoolean(true));
-                }
-                else if (data.equals("false")) {
-                    properties.replace(entry.getKey(), new JsonBoolean(false));
-                }
-                try {
-                    int value = Integer.parseInt(data);
-                    properties.replace(entry.getKey(), new JsonInteger(value));
-                } catch  (Exception e) {}
+//                if (data.equals("true")) {
+//                    properties.replace(entry.getKey(), new JsonBoolean(true));
+//                }
+//                else if (data.equals("false")) {
+//                    properties.replace(entry.getKey(), new JsonBoolean(false));
+//                }
+//                try {
+//                    int value = Integer.parseInt(data);
+//                    properties.replace(entry.getKey(), new JsonInteger(value));
+//                } catch  (Exception e) {}
             }
             else if (entry.getValue() instanceof JsonObject) {
                 return entry.getValue().validate();
@@ -266,27 +291,52 @@ enum ParserState { ObjectExpectingKey, ObjectExpectingValue, Array }
 public class JSON {
 
     static ArrayList<Token> extractTokens(FileInputStream stream, int file_length) throws Exception {
+        // First we simply turn the file into an ArrayList of Strings, using regular expressions.
+        byte[] byte_data = new byte[stream.available()];
+        stream.read(byte_data);
+        String string_data = new String(byte_data);
+
+        ArrayList<String> raw_tokens = new ArrayList<>();
+        // Regex pattern to match JSON tokens:
+        // - Punctuation: { } [ ] : ,
+        // - Strings: "..."
+        // - Numbers: 123, -45.67, 1.2e3
+        // - Booleans: true, false
+        // - Null: null
+        Pattern pattern = Pattern.compile(
+                        "\"(?:\\\\.|[^\"\\\\])*\"|" +  // Strings (with escaped quotes)
+                        "[-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?|" +  // Numbers
+                        "true|false|null|" +  // Booleans and null
+                        "[{}\\[\\],:]"  // Punctuation
+        );
+        Matcher matcher = pattern.matcher(string_data);
+        while (matcher.find()) {
+            raw_tokens.add(matcher.group());
+        }
+
+        // Now we actually extract the equivalent Token instances from the String list.
         ArrayList<Token> tokens = new ArrayList<>();
-        Token buffer_token = null;
-
-        for (int i = 0; i < file_length; i++) {
-            char next_character = (char)stream.read();
-
-            if ( next_character == ':' ) tokens.add(new Token(TokenForm.Definer));
-            else if ( next_character == ',' ) tokens.add(new Token(TokenForm.Deliminator));
-            else if ( next_character == '[' ) tokens.add(new Token(TokenForm.ArrayBoundaryBegin));
-            else if ( next_character == '{' ) tokens.add(new Token(TokenForm.ObjectBoundaryBegin));
-            else if ( next_character == ']' ) tokens.add(new Token(TokenForm.ArrayBoundaryEnd));
-            else if ( next_character == '}' ) tokens.add(new Token(TokenForm.ObjectBoundaryEnd));
-            else if ( next_character == '"' ) {
-                if ( buffer_token == null ) buffer_token = new Token(TokenForm.String, new ArrayList<>());
-                else {
-                    tokens.add(buffer_token);
-                    buffer_token = null;
+        for (String string : raw_tokens) {
+            if (string.equals(":")) tokens.add(new Token(TokenForm.Definer));
+            else if (string.equals(",")) tokens.add(new Token(TokenForm.Deliminator));
+            else if (string.equals("[")) tokens.add(new Token(TokenForm.ArrayBoundaryBegin));
+            else if (string.equals("]")) tokens.add(new Token(TokenForm.ArrayBoundaryEnd));
+            else if (string.equals("{")) tokens.add(new Token(TokenForm.ObjectBoundaryBegin));
+            else if (string.equals("}")) tokens.add(new Token(TokenForm.ObjectBoundaryEnd));
+            else if (string.startsWith("\"") && string.endsWith("\"")) {
+                ArrayList<Character> characters = new ArrayList<>();
+                for (char c : string.toCharArray()) {
+                    characters.add(c);
                 }
+                tokens.add(new Token(TokenForm.String, characters));
             }
-            else {
-                if (buffer_token != null) buffer_token.addToData(next_character);
+            else if (string.chars().allMatch(Character::isDigit)) {
+                int value = Integer.parseInt(string);
+                tokens.add(new Token(TokenForm.Integer, value));
+            }
+            else if (string.equals("true") || string.equals("false")) {
+                boolean status = Boolean.parseBoolean(string);
+                tokens.add(new Token(TokenForm.Boolean, status));
             }
         }
 
@@ -334,6 +384,7 @@ public class JSON {
             // Build tree out of the Data from the tokens list.
             // We only require the Root vertex to have the whole tree.
             JsonObject root = generateTree(tokens);
+            return root;
 
             // Now we validate the tree to make sure there's no errors in the JSON, and to get the booleans and integers.
 
