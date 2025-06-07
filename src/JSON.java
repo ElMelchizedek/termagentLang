@@ -1,8 +1,5 @@
-import javax.sound.sampled.EnumControl;
 import java.io.FileInputStream;
-import java.lang.annotation.ElementType;
 import java.lang.reflect.Field;
-import java.lang.reflect.Type;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -12,7 +9,7 @@ enum TokenForm {Definer, Deliminator, ArrayBoundaryBegin, ObjectBoundaryBegin, A
     ObjectBoundaryEnd, String, Integer, Boolean}
 
 class Token {
-    private TokenForm form;
+    final private TokenForm form;
     // Can't be fucked to implement composition with a Token interface to delineate integers, booleans, and others.
     private ArrayList<Character> data;
     private int value;
@@ -39,8 +36,6 @@ class Token {
     public int getValue() { return value; }
     public boolean getStatus() { return status; }
 
-    public void setForm(TokenForm form) { this.form = form; }
-    public void addToData(Character datum)  { data.add(datum); }
 }
 
 interface Vertex {
@@ -53,7 +48,6 @@ class JsonArray implements Vertex {
 
     public JsonArray() {}
 
-    public void setElements(ArrayList<Vertex> elements) { this.elements = elements; }
     public ArrayList<Vertex> getElements() { return elements; }
 
     @Override
@@ -115,7 +109,6 @@ class JsonObject implements Vertex {
 
     public JsonObject() {}
 
-    public void setProperties(Map<String, Vertex> properties) { this.properties = properties; }
     public Map<String, Vertex> getProperties() { return properties; }
 
     @Override
@@ -172,32 +165,6 @@ class JsonObject implements Vertex {
 
     @Override
     public boolean validate() {
-        for (Map.Entry<String, Vertex> entry : properties.entrySet()) {
-            if (entry.getValue() instanceof JsonPrimitive) {
-                JsonPrimitive vertex = (JsonPrimitive) entry.getValue();
-
-                StringBuilder builder = new StringBuilder(vertex.getData().size());
-                for (Character character : vertex.getData()) {
-                    builder.append(character);
-                }
-                String data = builder.toString();
-
-//                if (data.equals("true")) {
-//                    properties.replace(entry.getKey(), new JsonBoolean(true));
-//                }
-//                else if (data.equals("false")) {
-//                    properties.replace(entry.getKey(), new JsonBoolean(false));
-//                }
-//                try {
-//                    int value = Integer.parseInt(data);
-//                    properties.replace(entry.getKey(), new JsonInteger(value));
-//                } catch  (Exception e) {}
-            }
-            else if (entry.getValue() instanceof JsonObject) {
-                return entry.getValue().validate();
-            }
-        }
-
         return true;
     }
 
@@ -231,9 +198,7 @@ class JsonPrimitive implements Vertex {
     private ArrayList<Character> data;
 
     public JsonPrimitive(ArrayList<Character> data) { this.data = data; }
-    public JsonPrimitive() {}
 
-    public void setData(ArrayList<Character> data) { this.data = data; }
     public ArrayList<Character> getData() { return data; }
 
     @Override
@@ -251,13 +216,12 @@ class JsonPrimitive implements Vertex {
         return new String(array);
     }
 }
+@SuppressWarnings("ClassCanBeRecord")
 class JsonInteger implements Vertex {
-    private int value;
+    final private int value;
 
     public JsonInteger(int value) { this.value = value; }
-    public JsonInteger() {}
 
-    public void setValue(int data) { this.value = value; }
     public int getValue() { return value; }
 
     @Override
@@ -274,8 +238,7 @@ class JsonInteger implements Vertex {
 class JsonBoolean implements Vertex {
     private boolean status;
 
-    public JsonBoolean(boolean value) { this.status = status; }
-    public JsonBoolean() {}
+    public JsonBoolean(boolean status) { this.status = status; }
 
     public boolean getStatus() { return status; }
 
@@ -295,7 +258,7 @@ enum ParserState { ObjectExpectingKey, ObjectExpectingValue, Array }
 
 public class JSON {
 
-    static ArrayList<Token> extractTokens(FileInputStream stream, int file_length) throws Exception {
+    private static ArrayList<Token> extractTokens(FileInputStream stream, int file_length) throws Exception {
         // First we simply turn the file into an ArrayList of Strings, using regular expressions.
         byte[] byte_data = new byte[stream.available()];
         stream.read(byte_data);
@@ -349,7 +312,7 @@ public class JSON {
 
     }
 
-    static JsonObject generateTree(ArrayList<Token> tokens) {
+    private static JsonObject generateTree(ArrayList<Token> tokens) {
         Deque<Vertex> vertex_stack = new ArrayDeque<>();
         Deque<ParserState> state_stack = new ArrayDeque<>();
         // Create root vertex and top of state stack.
@@ -366,8 +329,8 @@ public class JSON {
     }
 
     // I will implement this sometime in the future. It is not pertinent to be done right now as only I am using this
-    // custom deserialiser, and so I don't need to worry abouy anyone else incorrectly writing JSON code.
-    static boolean validateTree(JsonObject root) {
+    // custom deserialiser, and so I don't need to worry about anyone else incorrectly writing JSON code.
+    private static boolean validateTree(JsonObject root) {
         return true;
     }
 
@@ -388,18 +351,17 @@ public class JSON {
             return ((JsonInteger) vertex).getValue();
         } else if (vertex instanceof JsonBoolean) {
             return (((JsonBoolean) vertex).getStatus());
-        } else if (vertex instanceof JsonArray) {
+        } else if (vertex instanceof JsonArray array) {
             // Here I lazily determine the specific type of array in Java.
-            JsonArray array = (JsonArray) vertex;
-            Class<?> Elements_Class = ((JsonArray) vertex).getElements().getFirst().getClass();
+            Class<?> Elements_Class = array.getElements().getFirst().getClass();
             ArrayList<Object> elements_generic = new ArrayList<>();
             for (Vertex element : array.getElements()) elements_generic.add(convertVertexToType(element));
 
             // Lazy type-cast.
-            if (array.getElements().getFirst() instanceof JsonPrimitive) return castList(elements_generic, String.class);
-            if (array.getElements().getFirst() instanceof JsonInteger) return castList(elements_generic, Integer.class);
-            if (array.getElements().getFirst() instanceof JsonBoolean) return castList(elements_generic, Boolean.class);
-            if (array.getElements().getFirst() instanceof JsonObject) return castList(elements_generic, Map.class);
+            if (Elements_Class == JsonPrimitive.class) return castList(elements_generic, String.class);
+            if (Elements_Class == JsonInteger.class) return castList(elements_generic, Integer.class);
+            if (Elements_Class == JsonBoolean.class) return castList(elements_generic, Boolean.class);
+            if (Elements_Class == JsonObject.class) return castList(elements_generic, Map.class);
         } else if (vertex instanceof JsonObject) {
             Map<String, Object> map = new HashMap<>();
 
