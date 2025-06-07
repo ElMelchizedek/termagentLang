@@ -1,4 +1,8 @@
+import javax.sound.sampled.EnumControl;
 import java.io.FileInputStream;
+import java.lang.annotation.ElementType;
+import java.lang.reflect.Field;
+import java.lang.reflect.Type;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -123,7 +127,6 @@ class JsonObject implements Vertex {
                 current_key = builder.toString();
                 state_stack.pop();
                 state_stack.push(ParserState.ObjectExpectingValue);
-
             }
 
         } else if (state_stack.peek() == ParserState.ObjectExpectingValue) {
@@ -269,10 +272,12 @@ class JsonInteger implements Vertex {
     }
 }
 class JsonBoolean implements Vertex {
-    private boolean value;
+    private boolean status;
 
-    public JsonBoolean(boolean value) { this.value = value; }
+    public JsonBoolean(boolean value) { this.status = status; }
     public JsonBoolean() {}
+
+    public boolean getStatus() { return status; }
 
     @Override
     public void parse(Token token, Deque<Vertex> vertex_stack, Deque<ParserState> state_stack) {}
@@ -282,7 +287,7 @@ class JsonBoolean implements Vertex {
 
     @Override
     public String toString(int indent) {
-        return Boolean.toString(value);
+        return Boolean.toString(status);
     }
 }
 
@@ -360,11 +365,74 @@ public class JSON {
         return (JsonObject) vertex_stack.getLast();
     }
 
+    // I will implement this sometime in the future. It is not pertinent to be done right now as only I am using this
+    // custom deserialiser, and so I don't need to worry abouy anyone else incorrectly writing JSON code.
     static boolean validateTree(JsonObject root) {
         return true;
     }
 
-    public static Vertex jsonRead(String path) {
+    private static <T> ArrayList<T> castList(ArrayList<?> list, Class<T> type) {
+        ArrayList<T> result = new ArrayList<>();
+        for (Object item : list) result.add(type.cast(item));
+        return result;
+    }
+
+    private static Object convertVertexToType(Vertex vertex) {
+        if (vertex instanceof JsonPrimitive) {
+            StringBuilder builder = new StringBuilder(((JsonPrimitive) vertex).getData().size());
+            for (Character c : ((JsonPrimitive) vertex).getData()) {
+                builder.append(c);
+            }
+            return builder.toString();
+        } else if (vertex instanceof JsonInteger) {
+            return ((JsonInteger) vertex).getValue();
+        } else if (vertex instanceof JsonBoolean) {
+            return (((JsonBoolean) vertex).getStatus());
+        } else if (vertex instanceof JsonArray) {
+            // Here I lazily determine the specific type of array in Java.
+            JsonArray array = (JsonArray) vertex;
+            Class<?> Elements_Class = ((JsonArray) vertex).getElements().getFirst().getClass();
+            ArrayList<Object> elements_generic = new ArrayList<>();
+            for (Vertex element : array.getElements()) elements_generic.add(convertVertexToType(element));
+
+            // Lazy type-cast.
+            if (array.getElements().getFirst() instanceof JsonPrimitive) return castList(elements_generic, String.class);
+            if (array.getElements().getFirst() instanceof JsonInteger) return castList(elements_generic, Integer.class);
+            if (array.getElements().getFirst() instanceof JsonBoolean) return castList(elements_generic, Boolean.class);
+            if (array.getElements().getFirst() instanceof JsonObject) return castList(elements_generic, Map.class);
+        } else if (vertex instanceof JsonObject) {
+            Map<String, Object> map = new HashMap<>();
+
+            for (Map.Entry<String, Vertex> entry : ((JsonObject) vertex).getProperties().entrySet()) {
+               map.put(entry.getKey(), convertVertexToType(entry.getValue()));
+            }
+            return map;
+        }
+        throw new RuntimeException("Unknown Vertex type passed to convertVertexToType().");
+    }
+
+    static <T> T deserialise(JsonObject root, Class<T> target_class) throws Exception {
+        T instance = target_class.getDeclaredConstructor().newInstance();
+
+        for (Map.Entry<String, Vertex> entry : root.getProperties().entrySet()) {
+            String key = entry.getKey();
+            Vertex value_vertex = entry.getValue();
+
+            Field field;
+            try {
+                field = target_class.getDeclaredField(key);
+            } catch (NoSuchFieldException e) {
+                continue;
+            }
+
+            field.setAccessible(true);
+            field.set(instance, convertVertexToType(value_vertex));
+        }
+
+        return instance;
+    }
+
+    public static <T> T jsonRead(String path, Class<T> target_class) throws RuntimeException {
         FileInputStream stream;
         try {
             // Load the file into memory.
@@ -384,10 +452,14 @@ public class JSON {
             // Build tree out of the Data from the tokens list.
             // We only require the Root vertex to have the whole tree.
             JsonObject root = generateTree(tokens);
-            return root;
 
-            // Now we validate the tree to make sure there's no errors in the JSON, and to get the booleans and integers.
+            // Now we validate the tree to make sure there's no errors in the JSON.
+            if (!validateTree(root)) {
+                throw new RuntimeException("Invalid JSON.");
+            }
 
+            // Now we map the tree onto the specified Class structure.
+            return deserialise(root, target_class);
 
         } catch (Exception e) {
             System.out.println("ERROR: " + e.getMessage());
