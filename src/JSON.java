@@ -1,4 +1,5 @@
 import java.io.FileInputStream;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -341,7 +342,15 @@ public class JSON {
         return result;
     }
 
-    private static Object convertVertexToType(Vertex vertex) {
+    private static Class<?> getArrayClass(JsonArray array) {
+        for (Vertex element : array.getElements()) {
+            if (element instanceof JsonArray) return getArrayClass((JsonArray) element);
+            else return element.getClass();
+        }
+        return null;
+    }
+
+    private static <T> Object convertVertexToType(Vertex vertex, Class<T> field_type) throws Exception {
         if (vertex instanceof JsonPrimitive) {
             StringBuilder builder = new StringBuilder(((JsonPrimitive) vertex).getData().size());
             for (Character c : ((JsonPrimitive) vertex).getData()) {
@@ -354,42 +363,56 @@ public class JSON {
             return (((JsonBoolean) vertex).getStatus());
         } else if (vertex instanceof JsonArray array) {
             // Here I lazily determine the specific type of array in Java.
-            Class<?> Elements_Class = array.getElements().getFirst().getClass();
+            Class<?> Elements_Class = getArrayClass((JsonArray) vertex);
             ArrayList<Object> elements_generic = new ArrayList<>();
-            for (Vertex element : array.getElements()) elements_generic.add(convertVertexToType(element));
+            for (Vertex element : array.getElements()) elements_generic.add(convertVertexToType(element, null));
 
             // Lazy type-cast.
             if (Elements_Class == JsonPrimitive.class) return castList(elements_generic, String.class);
             if (Elements_Class == JsonInteger.class) return castList(elements_generic, Integer.class);
             if (Elements_Class == JsonBoolean.class) return castList(elements_generic, Boolean.class);
             if (Elements_Class == JsonObject.class) return castList(elements_generic, Map.class);
+            if (Elements_Class == JsonArray.class) return castList(elements_generic, ArrayList.class);
         } else if (vertex instanceof JsonObject) {
-            Map<String, Object> map = new HashMap<>();
+            T object = null;
+            try {
+                object = field_type.getDeclaredConstructor().newInstance();
+            } catch (Exception e) { throw e; }
 
-            for (Map.Entry<String, Vertex> entry : ((JsonObject) vertex).getProperties().entrySet()) {
-               map.put(entry.getKey(), convertVertexToType(entry.getValue()));
+            if (object == null) throw new NullPointerException("Object null.");
+
+            for (Field field : field_type.getDeclaredFields()) {
+                field.setAccessible(true);
+                String field_name = field.getName().toLowerCase();
+
+                for (Map.Entry<String, Vertex> entry : ((JsonObject) vertex).getProperties().entrySet()) {
+                    if (entry.getKey().toLowerCase().equals(field_name)) {
+                        Vertex value_vertex = entry.getValue();
+                        field.set(object, convertVertexToType(value_vertex, field.getType()));
+                    }
+                }
             }
-            return map;
+
+            return object;
         }
         throw new RuntimeException("Unknown Vertex type passed to convertVertexToType().");
     }
 
     static <T> T deserialise(JsonObject root, Class<T> target_class) throws Exception {
-        T instance = target_class.getDeclaredConstructor().newInstance();
+        Constructor<T> constructor = target_class.getDeclaredConstructor();
+        constructor.setAccessible(true);
+        T instance = constructor.newInstance();
 
-        for (Map.Entry<String, Vertex> entry : root.getProperties().entrySet()) {
-            String key = entry.getKey();
-            Vertex value_vertex = entry.getValue();
-
-            Field field;
-            try {
-                field = target_class.getDeclaredField(key);
-            } catch (NoSuchFieldException e) {
-                continue;
-            }
-
+        for (Field field : target_class.getDeclaredFields()) {
             field.setAccessible(true);
-            field.set(instance, convertVertexToType(value_vertex));
+            String field_name = field.getName().toLowerCase();
+
+            for (Map.Entry<String, Vertex> entry : root.getProperties().entrySet()) {
+                if (entry.getKey().toLowerCase().equals(field_name)) {
+                    Vertex value_vertex = entry.getValue();
+                    field.set(instance, convertVertexToType(value_vertex, field.getType()));
+                }
+            }
         }
 
         return instance;

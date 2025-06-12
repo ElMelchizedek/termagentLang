@@ -112,51 +112,67 @@ public class TestJSON {
         assertNotNull(test_instance.parent.child);
         assertEquals("value", test_instance.parent.child);
         assertEquals(verified_instance.parent.child, test_instance.parent.child);
-        assertEquals(verified_instance.parent, test_instance.parent);
     }
+
     @Test
     public void testJsonObjectNested() {
-        JsonObject verified_root = new JsonObject();
-        JsonObject parent = new JsonObject();
-        JsonObject child = new JsonObject();
+        ObjectNested verified_instance = new ObjectNested();
+        verified_instance.parent = new ObjectNested.Parent();
+        verified_instance.parent.child = new ObjectNested.Parent.Child();
+        verified_instance.parent.child.primitive = "value";
 
-        child.getProperties().put("\"primitive\"",
-                new JsonPrimitive(stringToCharacterList("\"value\"")));
-        parent.getProperties().put("\"child\"", child);
-        verified_root.getProperties().put("\"parent\"", parent);
+        ObjectNested test_instance = readFile("data/test_json/objectnested.json", ObjectNested.class);
 
-//        JsonObject test_root = readFile("data/test_json/objectnested.json");
-//        assertEquals(verified_root.toString(0), test_root.toString(0));
+        assertNotNull(test_instance);
+        assertNotNull(test_instance.parent);
+        assertNotNull(test_instance.parent.child);
+        assertNotNull(test_instance.parent.child.primitive);
+        assertEquals("value", test_instance.parent.child.primitive);
+        assertEquals(verified_instance.parent.child.primitive, test_instance.parent.child.primitive);
     }
     @Test
     public void testJsonArraySimple() {
-        JsonObject verified_root = new JsonObject();
-        JsonArray array = new JsonArray();
+        ArraySimple verified_instance = new ArraySimple();
+        verified_instance.array = new ArrayList<>();
+        verified_instance.array.add("alpha");
+        verified_instance.array.add("bravo");
 
-        array.getElements().add(new JsonPrimitive(stringToCharacterList("\"alpha\"")));
-        array.getElements().add(new JsonPrimitive(stringToCharacterList("\"bravo\"")));
-        verified_root.getProperties().put("\"array\"", array);
+        ArraySimple test_instance = readFile("data/test_json/arraysimple.json", ArraySimple.class);
 
-//        JsonObject test_root = readFile("data/test_json/arraysimple.json");
-//        assertEquals(verified_root.toString(0), test_root.toString(0));
+        assertNotNull(test_instance);
+        assertNotNull(test_instance.array);
+        assertEquals("alpha", test_instance.array.get(0));
+        assertEquals("bravo", test_instance.array.get(1));
+        for (int i = 0; i < verified_instance.array.size(); i++) {
+            assertEquals(verified_instance.array.get(i), test_instance.array.get(i));
+        }
     }
     @Test
     public void testJsonArrayNested() {
-        JsonObject verified_root = new JsonObject();
-        JsonArray array = new JsonArray();
-        JsonArray child_1 = new JsonArray();
-        JsonArray child_2 = new JsonArray();
+        ArrayNested verified_instance = new ArrayNested();
+        verified_instance.array = new ArrayList<>();
+        ArrayList<String> first_array = new ArrayList<>();
+        first_array.add("alpha");
+        first_array.add("bravo");
+        ArrayList<String> second_array = new ArrayList<>();
+        second_array.add("yi");
+        second_array.add("er");
+        verified_instance.array.add(first_array);
+        verified_instance.array.add(second_array);
 
-        child_1.getElements().add(new JsonPrimitive(stringToCharacterList("\"alpha\"")));
-        child_1.getElements().add(new JsonPrimitive(stringToCharacterList("\"bravo\"")));
-        child_2.getElements().add(new JsonPrimitive(stringToCharacterList("\"yi\"")));
-        child_2.getElements().add(new JsonPrimitive(stringToCharacterList("\"er\"")));
-        array.getElements().add(child_1);
-        array.getElements().add(child_2);
-        verified_root.getProperties().put("\"array\"", array);
+        ArrayNested test_instance = readFile("data/test_json/arraynested.json", ArrayNested.class);
 
-//        JsonObject test_root = readFile("data/test_json/arraynested.json");
-//        assertEquals(verified_root.toString(0), test_root.toString(0));
+        assertNotNull(test_instance);
+        assertNotNull(test_instance.array);
+        assertEquals("alpha", test_instance.array.get(0).get(0));
+        assertEquals("bravo", test_instance.array.get(0).get(1));
+        assertEquals("yi", test_instance.array.get(1).get(0));
+        assertEquals("er", test_instance.array.get(1).get(1));
+        for (int i = 0; i < verified_instance.array.size(); i++) {
+            for (int j = 0; j < verified_instance.array.get(i).size(); j++) {
+                assertEquals(verified_instance.array.get(i).get(j), test_instance.array.get(i).get(j));
+            }
+        }
     }
     @Test
     public void testJsonObjectInArray() {
