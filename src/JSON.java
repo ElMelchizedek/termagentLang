@@ -292,8 +292,9 @@ public class JSON {
             else if (string.equals("{")) tokens.add(new Token(TokenForm.ObjectBoundaryBegin));
             else if (string.equals("}")) tokens.add(new Token(TokenForm.ObjectBoundaryEnd));
             else if (string.startsWith("\"") && string.endsWith("\"")) {
+                String content = string.substring(1, string.length() - 1);
                 ArrayList<Character> characters = new ArrayList<>();
-                for (char c : string.toCharArray()) {
+                for (char c : content.toCharArray()) {
                     characters.add(c);
                 }
                 tokens.add(new Token(TokenForm.String, characters));
